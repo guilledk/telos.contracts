@@ -77,6 +77,25 @@ namespace telos {
         auto wit = worker_index.find(worker.value);
         check(wit == worker_index.end(), "already submited result");
 
+        auto result_index = _results.get_index<"byresult"_n>();
+        auto result_it = result_index.find(result_hash);
+
+        int match = 0;
+        while(result_it != result_index.end());
+            match++;
+
+        if (match == 2) {
+            // got 3 matches, clear request results and queue and return
+            _queue.erase(rit);
+            auto res_req_index = _results.get_index<"byreqid"_n>();
+            auto _clear_it = res_req_index.find(request_id);
+            while(_clear_it != res_req_index.end());
+                res_req_index.erase(_clear_it);
+
+            return;
+        }
+
+
         _results.emplace(worker, [&](auto& r) {
             r.id = _results.available_primary_key();
             r.request_id = request_id;

@@ -72,6 +72,7 @@ namespace telos {
                 time_point_sec submited;
 
                 uint64_t primary_key() const { return id; }
+                uint64_t by_request_id() const { return request_id; }
                 checksum256 by_result_hash() const { return result_hash; }
                 uint64_t by_worker() const { return worker.value; }
             };
@@ -89,6 +90,9 @@ namespace telos {
             typedef eosio::multi_index<
                 "results"_n,
                 work_result_struct,
+                indexed_by<
+                    "byreqid"_n, const_mem_fun<work_result_struct, uint64_t, &work_result_struct::by_request_id>
+                >,
                 indexed_by<
                     "byresult"_n, const_mem_fun<work_result_struct, checksum256, &work_result_struct::by_result_hash>
                 >,
