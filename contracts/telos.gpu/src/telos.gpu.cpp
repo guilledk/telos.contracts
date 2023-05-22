@@ -2,7 +2,11 @@
 
 namespace telos {
 
-    void gpu::enqueue(const name& user, const string& request_data) {
+    void gpu::enqueue(
+        const name& user,
+        const string& request_body,
+        const vector<char>& binary_data
+    ) {
         require_auth(user);
 
         // MAYBE CHECK IF USER HAS GPU RESOURCE HERE
@@ -11,8 +15,11 @@ namespace telos {
         _queue.emplace(user, [&](auto& r) {
             r.id = _queue.available_primary_key();
             r.user = user;
-            r.data = request_data;
+            r.body = request_body;
+            r.binary_data = binary_data;
             r.timestamp = current_time_point();
+
+            print(r.id);
         });
     }
 
@@ -58,7 +65,8 @@ namespace telos {
     void gpu::submit(
         const name& worker,
         const uint64_t request_id,
-        const checksum256 result_hash
+        const checksum256 result_hash,
+        const string& ipfs_hash
     ) {
         require_auth(worker);
 
@@ -67,7 +75,7 @@ namespace telos {
         check(rit != _queue.end(), "request not found");
 
         worker_status _status(get_self(), request_id);
-        auto it = _status.find(request_id);
+        auto it = _status.find(worker.value);
         check(it != _status.end(), "status not found");
 
         _status.erase(it);
@@ -81,20 +89,23 @@ namespace telos {
         auto result_it = result_index.find(result_hash);
 
         int match = 0;
-        while(result_it != result_index.end());
+        while(result_it != result_index.end()) {
+            result_it++;
             match++;
+        }
 
         if (match == 2) {
             // got 3 matches, clear request results and queue and return
             _queue.erase(rit);
             auto res_req_index = _results.get_index<"byreqid"_n>();
             auto _clear_it = res_req_index.find(request_id);
-            while(_clear_it != res_req_index.end());
-                res_req_index.erase(_clear_it);
+            while(_clear_it != res_req_index.end()) {
+                auto _current = _clear_it++;
+                res_req_index.erase(_current);
+            }
 
             return;
         }
-
 
         _results.emplace(worker, [&](auto& r) {
             r.id = _results.available_primary_key();
@@ -102,6 +113,7 @@ namespace telos {
             r.user = rit->user;
             r.worker = worker;
             r.result_hash = result_hash;
+            r.ipfs_hash = ipfs_hash;
             r.submited = current_time_point();
         });
     }

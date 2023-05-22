@@ -3,6 +3,7 @@
 #include <eosio/eosio.hpp>
 #include <eosio/system.hpp>
 
+#include <vector>
 #include <string>
 
 using namespace eosio;
@@ -10,6 +11,7 @@ using namespace eosio;
 namespace telos {
 
     using std::string;
+    using std::vector;
 
     class [[eosio::contract("telos.gpu")]] gpu : public contract {
         public:
@@ -19,7 +21,11 @@ namespace telos {
 
             // to push work to queue
             [[eosio::action]]
-            void enqueue(const name& user, const string& request_data);
+            void enqueue(
+                const name& user,
+                const string& request_body,
+                const vector<char>& binary_data
+            );
 
             // to cancel enqueued work
             [[eosio::action]]
@@ -40,14 +46,16 @@ namespace telos {
             void submit(
                 const name& worker,
                 const uint64_t request_id,
-                const checksum256 result_hash
+                const checksum256 result_hash,
+                const string& ipfs_hash
             );
 
         private:
             struct [[eosio::table]] work_request_struct {
                 uint64_t id;
                 name user;
-                string data;
+                string body;
+                vector<char> binary_data;
                 time_point_sec timestamp;
 
                 uint64_t primary_key() const { return id; }
@@ -69,6 +77,7 @@ namespace telos {
                 name user;
                 name worker;
                 checksum256 result_hash;
+                string ipfs_hash;
                 time_point_sec submited;
 
                 uint64_t primary_key() const { return id; }
