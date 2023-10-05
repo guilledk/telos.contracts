@@ -1,4 +1,9 @@
-add_contract(telos.gpu telos.gpu ${CMAKE_CURRENT_SOURCE_DIR}/src/telos.gpu.cpp)
+add_contract(
+    telos.gpu telos.gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/system.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/balance.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/worker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/user.cpp)
 
 target_include_directories(telos.gpu
    PUBLIC
