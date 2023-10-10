@@ -91,33 +91,53 @@ namespace telos {
         auto rit = _queue.find(request_id);
         check(rit != _queue.end(), "request not found");
 
-        worker_status _status(get_self(), request_id);
-        auto it = _status.find(request_id);
-        check(it == _status.end(), "request already started");
-
-        int statuses_count = 0;
-        for (auto sit = _status.begin(); sit != _status.end(); sit++)
-            statuses_count++;
-
-        check(statuses_count <= max_workers, "too many workers already on this request");
-
-        _status.emplace(worker, [&](auto& s) {
-            s.worker = worker;
-            s.status = "started";
-            s.started = current_time_point();
+        _queue.modify(rit, worker, [&](auto& r) {
+            auto sit = std::find_if(r.status.begin(), r.status.end(),
+                [&worker](const worker_status_struct item) {
+                    return item.worker == worker;
+                }
+            );
+            check(sit == r.status.end(), "request already started");
+            check(r.status.size() <= max_workers, "too many workers already on this request");
+            r.status.push_back({worker, "started", current_time_point()});
         });
+    }
 
+    void gpu::workupdate(const name& worker, const uint64_t request_id, const string& status) {
+        require_auth(worker);
+
+        work_queue _queue(get_self(), get_self().value);
+        auto rit = _queue.find(request_id);
+        check(rit != _queue.end(), "request not found");
+
+        _queue.modify(rit, worker, [&](auto& r) {
+            auto sit = std::find_if(r.status.begin(), r.status.end(),
+                [&worker](const worker_status_struct item) {
+                    return item.worker == worker;
+                }
+            );
+            check(sit != r.status.end(), "status not found");
+            sit->status = status;
+        });
     }
 
     void gpu::workcancel(
         const name& worker, const uint64_t request_id, const string& reason) {
         require_auth(worker);
 
-        worker_status _status(get_self(), request_id);
-        auto it = _status.find(worker.value);
-        check(it != _status.end(), "status not found");
+        work_queue _queue(get_self(), get_self().value);
+        auto rit = _queue.find(request_id);
+        check(rit != _queue.end(), "request not found");
 
-        _status.erase(it);
+        _queue.modify(rit, worker, [&](auto& r) {
+            auto sit = std::find_if(r.status.begin(), r.status.end(),
+                [&worker](const worker_status_struct item) {
+                    return item.worker == worker;
+                }
+            );
+            check(sit != r.status.end(), "status not found");
+            r.status.erase(sit);
+        });
     }
 
     void gpu::submit(
@@ -134,15 +154,23 @@ namespace telos {
         auto rit = _queue.find(request_id);
         check(rit != _queue.end(), "request not found");
 
-        const string& hash_str = to_string(rit->nonce) + rit->body + rit->binary_data;
+        string binary_inputs = "";
+        for (const string& binary_input : rit->binary_inputs)
+            binary_inputs += binary_input;
+
+        const string& hash_str = to_string(rit->nonce) + rit->body + binary_inputs;
         print("hashing: " + hash_str + "\n");
         assert_sha256(hash_str.c_str(), hash_str.size(), request_hash);
 
-        worker_status _status(get_self(), request_id);
-        auto it = _status.find(worker.value);
-        check(it != _status.end(), "status not found");
-
-        _status.erase(it);
+        _queue.modify(rit, worker, [&](auto& r) {
+            auto sit = std::find_if(r.status.begin(), r.status.end(),
+                [&worker](const worker_status_struct item) {
+                    return item.worker == worker;
+                }
+            );
+            check(sit != r.status.end(), "status not found");
+            r.status.erase(sit);
+        });
 
         work_results _results(get_self(), get_self().value);
         auto worker_index = _results.get_index<"byworker"_n>();
@@ -171,13 +199,7 @@ namespace telos {
 
         if (match == rit->min_verification) {
             // got enough matches, split reward between miners,
-            // clear request results, status & queue and return
-
-
-            worker_status _status(get_self(), request_id);
-            auto _status_it = _status.begin();
-            while (_status_it != _status.end())
-                _status_it = _status.erase(_status_it);
+            // clear request results & queue and return
 
             vector<name> payments;
 

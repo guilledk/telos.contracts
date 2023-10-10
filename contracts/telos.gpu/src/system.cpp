@@ -4,7 +4,8 @@ namespace telos {
 
     void gpu::config(
         const name& token_contract,
-        const symbol& token_symbol
+        const symbol& token_symbol,
+        const uint64_t& nonce
     ) {
         require_auth(get_self());
 
@@ -14,6 +15,7 @@ namespace telos {
 
         g_config.token_contract = token_contract;
         g_config.token_symbol = token_symbol;
+        g_config.nonce = nonce;
 
         global_config_instance.set(g_config, get_self());
     }
@@ -25,14 +27,8 @@ namespace telos {
         work_results _results(get_self(), get_self().value);
 
         auto qit = _queue.begin();
-        while (qit != _queue.end()) {
-            worker_status _status(get_self(), qit->id);
-            auto sit = _status.begin();
-            while (sit != _status.end())
-                sit = _status.erase(sit);
-
+        while (qit != _queue.end())
             qit = _queue.erase(qit);
-        }
 
         auto rit = _results.begin();
         while (rit != _results.end())

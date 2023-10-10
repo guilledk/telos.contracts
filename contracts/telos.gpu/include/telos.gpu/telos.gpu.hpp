@@ -36,7 +36,8 @@ namespace telos {
             [[eosio::action]]
             void config(
                 const name& token_contract,
-                const symbol& token_symbol
+                const symbol& token_symbol,
+                const uint64_t& nonce
             );
 
 #ifdef TESTING
@@ -64,7 +65,7 @@ namespace telos {
             void enqueue(
                 const name& user,
                 const string& request_body,
-                const string& binary_data,
+                const std::vector<string>& binary_inputs,
                 const asset& reward,
                 const uint32_t min_verification
             );
@@ -111,12 +112,17 @@ namespace telos {
             void workbegin(
                 const name& worker, const uint64_t request_id, uint32_t max_workers);
 
+            // update worker status: generic
+            [[eosio::action]]
+            void workupdate(
+                const name& worker, const uint64_t request_id, const string& status);
+
             // update worker status: cancelled
             [[eosio::action]]
             void workcancel(
                 const name& worker, const uint64_t request_id, const string& reason);
 
-            // after doing work, if we get three hash matches clear out request
+            // after doing work, if we get min_verification matches clear out request
             [[eosio::action]]
             void submit(
                 const name& worker,
@@ -126,17 +132,11 @@ namespace telos {
                 const string& ipfs_hash
             );
 
-            // helpers
-            uint64_t get_nonce(const name& user) {
-                users _users(get_self(), get_self().value);
-                const auto& it = _users.get(user.value, "no user account object found");
-                return it.nonce;
-            }
-
         private:
             struct [[eosio::table]] global_configuration_struct {
                 name token_contract;
                 symbol token_symbol;
+                uint64_t nonce;
             } global_config_row;
 
             typedef eosio::singleton<"config"_n, global_configuration_struct> global_config;
@@ -145,7 +145,6 @@ namespace telos {
             struct [[eosio::table]] account {
                 name user;
                 asset    balance;
-                uint64_t nonce;
 
                 uint64_t primary_key()const { return user.value; }
             };
@@ -186,20 +185,27 @@ namespace telos {
                 >
             > cards;
 
+            struct worker_status_struct {
+                name worker;
+                string status;
+                time_point_sec started;
+            };
+
             struct [[eosio::table]] work_request_struct {
-                uint64_t id;
+                uint64_t nonce;
+
                 name user;
                 asset reward;
                 uint32_t min_verification;
 
-                uint64_t nonce;
-
                 string body;
-                string binary_data;
+                std::vector<string> binary_inputs;
+
+                std::vector<worker_status_struct> status;
 
                 time_point_sec timestamp;
 
-                uint64_t primary_key() const { return id; }
+                uint64_t primary_key() const { return nonce; }
                 uint64_t by_time() const { return (uint64_t)timestamp.sec_since_epoch(); }
             };
 
@@ -210,17 +216,6 @@ namespace telos {
                     "bytime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_time>
                 >
             > work_queue;
-
-            struct [[eosio::table]] worker_status_struct {
-                // SCOPED TO request_id
-                name worker;
-                string status;
-                time_point_sec started;
-
-                uint64_t primary_key() const { return worker.value; }
-            };
-
-            typedef eosio::multi_index<"status"_n, worker_status_struct> worker_status;
 
             struct [[eosio::table]] work_result_struct {
                 uint64_t id;
@@ -255,7 +250,14 @@ namespace telos {
                 >
             > work_results;
 
-            uint64_t increment_nonce(const name& owner);
+            // helpers
+            uint64_t get_and_increment_nonce() {
+                auto g_config = global_config_instance.get();
+                uint64_t nonce = g_config.nonce;
+                g_config.nonce += 1;
+                global_config_instance.set(g_config, get_self());
+                return nonce;
+            }
 
             void sub_balance(const name& owner, const asset& value);
             void add_balance(const name& owner, const asset& value, const name& ram_payer);

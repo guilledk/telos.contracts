@@ -59,7 +59,6 @@ namespace telos {
             _users.emplace(ram_payer, [&](auto& a) {
                 a.user = owner;
                 a.balance = value;
-                a.nonce = 0;
             });
         } else {
             _users.modify(to, same_payer, [&](auto& a) {
