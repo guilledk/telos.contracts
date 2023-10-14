@@ -87,6 +87,9 @@ namespace telos {
     void gpu::workbegin(const name& worker, const uint64_t request_id, uint32_t max_workers) {
         require_auth(worker);
 
+        auto it = _workers.find(worker.value);
+        check(it != _workers.end(), "worker not registered");
+
         work_queue _queue(get_self(), get_self().value);
         auto rit = _queue.find(request_id);
         check(rit != _queue.end(), "request not found");

@@ -206,6 +206,11 @@ namespace telos {
                 time_point_sec timestamp;
 
                 uint64_t primary_key() const { return nonce; }
+
+                uint64_t by_reward_and_time() const {
+                    return (uint64_t)timestamp.sec_since_epoch() - reward.amount;
+                }
+
                 uint64_t by_time() const { return (uint64_t)timestamp.sec_since_epoch(); }
             };
 
@@ -213,6 +218,7 @@ namespace telos {
                 "queue"_n,
                 work_request_struct,
                 indexed_by<
+                    "byrewandtime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_reward_and_time>,
                     "bytime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_time>
                 >
             > work_queue;
