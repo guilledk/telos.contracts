@@ -48,9 +48,10 @@ namespace telos {
         });
     }
 
-    void togglecard(const name& worker, const uint64_t index) {
+    void gpu::togglecard(const name& worker, const uint64_t index) {
         require_auth(worker);
 
+        workers _workers(get_self(), get_self().value);
         auto it = _workers.find(worker.value);
         check(it != _workers.end(), "worker not registered");
 
@@ -69,9 +70,10 @@ namespace telos {
     //     uint64_t card_id
     // );
 
-    void gpu::flushcards(onst name& worker) {
+    void gpu::flushcards(const name& worker) {
         require_auth(worker);
 
+        workers _workers(get_self(), get_self().value);
         auto it = _workers.find(worker.value);
         check(it != _workers.end(), "worker not registered");
 
@@ -93,6 +95,7 @@ namespace telos {
     void gpu::workbegin(const name& worker, const uint64_t request_id, uint32_t max_workers) {
         require_auth(worker);
 
+        workers _workers(get_self(), get_self().value);
         auto it = _workers.find(worker.value);
         check(it != _workers.end(), "worker not registered");
 

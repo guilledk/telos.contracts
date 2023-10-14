@@ -204,8 +204,10 @@ namespace telos {
                 "queue"_n,
                 work_request_struct,
                 indexed_by<
-                    "byrewandtime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_reward_and_time>,
                     "bytime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_time>
+                >,
+                indexed_by<
+                    "byrewandtime"_n, const_mem_fun<work_request_struct, uint64_t, &work_request_struct::by_reward_and_time>
                 >
             > work_queue;
 
