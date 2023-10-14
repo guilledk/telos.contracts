@@ -31,7 +31,8 @@ namespace telos {
         const string& version,
         uint64_t total_memory,
         uint32_t mp_count,
-        const string& extra
+        const string& extra,
+        bool is_online
     ) {
         require_auth(worker);
 
@@ -40,15 +41,25 @@ namespace telos {
         auto it = _workers.find(worker.value);
         check(it != _workers.end(), "worker not registered");
 
-        cards _cards(get_self(), get_self().value);
-        _cards.emplace(worker, [&](auto& c) {
-            c.id = _cards.available_primary_key();
-            c.owner = worker;
-            c.card_name = card_name;
-            c.version = version;
-            c.total_memory = total_memory;
-            c.mp_count = mp_count;
-            c.extra = extra;
+        _workers.modify(it, worker, [&](auto& w) {
+            w.cards.push_back(card{
+                card_name, version, total_memory, mp_count, extra, is_online
+            });
+        });
+    }
+
+    void togglecard(const name& worker, const uint64_t index) {
+        require_auth(worker);
+
+        auto it = _workers.find(worker.value);
+        check(it != _workers.end(), "worker not registered");
+
+        check(index >= 0 && index < it->cards.size(), "card index out of bounds");
+
+        bool current_value = it->cards[index].is_online;
+
+        _workers.modify(it, worker, [&](auto& w) {
+            w.cards[index].is_online = !current_value;
         });
     }
 
@@ -58,17 +69,15 @@ namespace telos {
     //     uint64_t card_id
     // );
 
-    void gpu::remcard(
-        const name& worker,
-        uint64_t id
-    ) {
+    void gpu::flushcards(onst name& worker) {
         require_auth(worker);
 
-        cards _cards(get_self(), get_self().value);
-        auto it = _cards.find(id);
-        check(it != _cards.end(), "card not found");
+        auto it = _workers.find(worker.value);
+        check(it != _workers.end(), "worker not registered");
 
-        _cards.erase(it);
+        _workers.modify(it, worker, [&](auto& w) {
+            w.cards.clear();
+        });
     }
 
     void gpu::unregworker(const name& account, const string& unreg_reason) {
@@ -77,13 +86,6 @@ namespace telos {
         workers _workers(get_self(), get_self().value);
         auto it = _workers.find(account.value);
         check(it != _workers.end(), "worker not registered");
-
-        // clear out cards
-        cards _cards(get_self(), get_self().value);
-        auto worker_card_index = _cards.get_index<"byowner"_n>();
-        auto worker_cards_it = worker_card_index.find(account.value);
-        while (worker_cards_it != worker_card_index.end())
-            worker_cards_it = worker_card_index.erase(worker_cards_it);
 
         _workers.erase(it);
     }

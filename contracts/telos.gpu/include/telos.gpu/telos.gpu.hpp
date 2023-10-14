@@ -89,8 +89,12 @@ namespace telos {
                 const string& version,
                 uint64_t total_memory,
                 uint32_t mp_count,
-                const string& extra
+                const string& extra,
+                bool is_online
             );
+
+            // toggle card
+            void togglecard(const name& worker, const uint64_t index);
 
             // verify another worker's card proof
             // void verifycard(
@@ -99,11 +103,8 @@ namespace telos {
             //     uint64_t card_id
             // );
 
-            // remove a card when not online
-            void remcard(
-                const name& worker,
-                uint64_t id
-            );
+            // remove currently listed cards
+            void flushcards(const name& worker);
 
             void unregworker(const name& account, const string& reason);
 
@@ -150,40 +151,25 @@ namespace telos {
             };
             typedef eosio::multi_index<"users"_n, account> users;
 
-            struct [[eosio::table]] worker {
-                name account;
-                time_point_sec joined;
-                time_point_sec left;
-                string url;
-
-                uint64_t primary_key()const { return account.value; }
-            };
-            typedef eosio::multi_index<"workers"_n, worker> workers;
-
-            struct [[eosio::table]] card {
-                uint64_t id;
-
-                name owner;
+            struct card {
                 string card_name;
                 string version;
                 uint64_t total_memory;
                 uint32_t mp_count;
                 string extra;
-
-                // string ipfs_proof;
-                // uint32_t verifications;
-                // time_point_sec last_verified;
-
-                uint64_t primary_key() const { return id; }
-                uint64_t by_owner() const { return owner.value; }
+                bool is_online;
             };
-            typedef eosio::multi_index<
-                "cards"_n,
-                card,
-                indexed_by<
-                    "byowner"_n, const_mem_fun<card, uint64_t, &card::by_owner>
-                >
-            > cards;
+
+            struct [[eosio::table]] worker {
+                name account;
+                time_point_sec joined;
+                time_point_sec left;
+                string url;
+                std::vector<card> cards;
+
+                uint64_t primary_key()const { return account.value; }
+            };
+            typedef eosio::multi_index<"workers"_n, worker> workers;
 
             struct worker_status_struct {
                 name worker;
