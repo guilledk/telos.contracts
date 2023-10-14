@@ -12,13 +12,17 @@ namespace telos {
         workers _workers(get_self(), get_self().value);
 
         auto it = _workers.find(account.value);
-        check(it == _workers.end(), "worker alredy registered");
 
-        _workers.emplace(account, [&](auto& w) {
-            w.account = account;
-            w.url = url;
-            w.joined = current_time_point();
-        });
+        if (it == _workers.end())
+            _workers.emplace(account, [&](auto& w) {
+                w.account = account;
+                w.url = url;
+                w.joined = current_time_point();
+            });
+        else
+            _workers.modify(it, account, [&](auto& w) {
+                w.url = url;
+            });
     }
 
     void gpu::addcard(
